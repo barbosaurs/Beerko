@@ -169,7 +169,7 @@ class GameGlobal:
 class GameObject(pygame.sprite.Sprite):
     def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), gravity=(0, 0), **tags):
         super().__init__(game_global.all_objects_group)
-
+        self.physical_object = None
 
         self.pos, self.size, self.scale, self.name, self.im, self.color, self.gravity = [None] * 7
         self.tags = {}
@@ -217,6 +217,9 @@ class GameObject(pygame.sprite.Sprite):
             self.forces = {}
             self.forces['gravity'] = self.gravity
             self.collisions = set()
+
+    def assign_physical(self, physical):
+        self.physical_object = physical
 
     def start(self):
         pass
