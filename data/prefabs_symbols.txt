@@ -1,0 +1,4 @@
+b GameObject:(prefab="bricks")
+- GameObject:(prefab="dirt")
+0 GameObject:(prefab="dark_stone")
+@ Player:(prefab="player")

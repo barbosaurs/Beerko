@@ -1,0 +1,8 @@
+100;self.add_move_input_axis((1, 0))
+97;self.add_move_input_axis((-1, 0))
+119;self.add_move_input_axis((0, -1))
+115;self.add_move_input_axis((0, 1))
+1073741903;self.add_move_input_axis((1, 0))
+1073741904;self.add_move_input_axis((-1, 0))
+1073741906;self.add_move_input_axis((0, -1))
+1073741905;self.add_move_input_axis((0, 1))

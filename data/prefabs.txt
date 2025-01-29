@@ -1,0 +1,4 @@
+bricks:(name='bricks', im='bricks', *has_collider=True)
+dirt:(name='dirt', im='dirt')
+dark_stone:(name='dark_stone', im='dark_stone')
+player:(name="player", im="hp", move_speed=6, gravity=(0, 0), scale=(1, 1), *physical=True, *has_collider=True)

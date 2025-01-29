@@ -1,0 +1,1 @@
+Player:(pos=(720, 200), prefab="player")
