@@ -120,12 +120,6 @@ class GameGlobal:
                 f2 = f1.split(':')
                 f = f2[1].split(';')
                 f = [i.strip() for i in f]
-                for i in range(len(f)):
-                    game_object = eval(f'{f2[0]}{f[i]}')
-                    segment_shape = pymunk.Segment(self.game_manager.space.static_body, game_object.pos, game_object.size, 26)
-                    self.game_manager.space.add(segment_shape)
-                    segment_shape.elasticity = 0.4
-                    segment_shape.friction = 1.0
                 game_objects = [eval(f'{f2[0]}{f[i]}') for i in range(len(f))]
                 self.add_game_objects(tuple(game_objects))
         else:
@@ -169,7 +163,6 @@ class GameGlobal:
 class GameObject(pygame.sprite.Sprite):
     def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), gravity=(0, 0), **tags):
         super().__init__(game_global.all_objects_group)
-        self.physical_object = None
 
         self.pos, self.size, self.scale, self.name, self.im, self.color, self.gravity = [None] * 7
         self.tags = {}
@@ -208,7 +201,6 @@ class GameObject(pygame.sprite.Sprite):
         if 'has_collider' in self.tags and self.tags['has_collider']:
             self.add(game_global.collider_objects_group)
 
-
         if 'physical' in self.tags and self.tags['physical']:
             self.add(game_global.physical_objects_group)
 
@@ -217,9 +209,6 @@ class GameObject(pygame.sprite.Sprite):
             self.forces = {}
             self.forces['gravity'] = self.gravity
             self.collisions = set()
-
-    def assign_physical(self, physical):
-        self.physical_object = physical
 
     def start(self):
         pass
