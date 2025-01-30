@@ -3,8 +3,34 @@ import math
 import pymunk
 import pymunk.pygame_util
 pymunk.pygame_util.positive_y_is_up = False
+from random import randrange
 
 game_global = None
+
+
+def create_rigidbody(space, pos, size):
+    body_pos = pos[0] + size[0] / 2, pos[1] + size[1] / 2
+    square_mass, square_size = 1, size
+    square_moment = pymunk.moment_for_box(square_mass, square_size)
+    square_body = pymunk.Body(square_mass, square_moment)
+    square_body.position = body_pos
+    square_shape = pymunk.Poly.create_box(square_body, square_size)
+    # square_shape.elasticity = 0.0
+    square_shape.friction = 1.0
+    square_shape.color = [randrange(256) for i in range(4)]
+    space.add(square_body, square_shape)
+    return square_body, square_shape
+
+
+def create_static_collider(space, pos, size):
+    body_pos = pos[0] + size[0] / 2, pos[1] + size[1] / 2
+    static_body = space.static_body
+    rect_shape = pymunk.Poly.create_box(static_body, size=size)
+    rect_shape.body.position = body_pos
+    # rect_shape.elasticity = 0.0
+    rect_shape.friction = 1.0
+    space.add(rect_shape)
+    return static_body, rect_shape
 
 
 class GameRenderer:
@@ -28,7 +54,9 @@ class GameManager:
         self.load_keys(keys_path)
 
         self.space = pymunk.Space()
-        self.space.gravity = 0, 8000
+        self.space.gravity = 0, 0
+        # surface = pygame.display.set_mode((1200, 680))
+        # self.draw_options = pymunk.pygame_util.DrawOptions(surface)
 
     def load_keys(self, keys_path):
         f = open(keys_path).readlines()
@@ -56,6 +84,7 @@ class GameManager:
             if keys[k]:
                 eval(v)
         [player.set_move_input_axis(self.move_input_axis) for player in self.players]
+
 
     def scene_start(self):
         pass
@@ -156,6 +185,7 @@ class GameGlobal:
         self.game_manager.update()
         [obj.update() for obj in self.game_objects]
 
+
     def render(self, screen):
         self.game_renderer.render(self.all_objects_group, screen)
 
@@ -200,15 +230,12 @@ class GameObject(pygame.sprite.Sprite):
 
         if 'has_collider' in self.tags and self.tags['has_collider']:
             self.add(game_global.collider_objects_group)
+            self.body, self.shape = create_static_collider(game_global.game_manager.space, self.pos, self.size)
 
         if 'physical' in self.tags and self.tags['physical']:
             self.add(game_global.physical_objects_group)
+            self.body, self.shape = create_rigidbody(game_global.game_manager.space, self.pos, self.size)
 
-            self.physical_speed = (0, 0)
-            self.velocity = (0, 0)
-            self.forces = {}
-            self.forces['gravity'] = self.gravity
-            self.collisions = set()
 
     def start(self):
         pass
@@ -216,18 +243,10 @@ class GameObject(pygame.sprite.Sprite):
     def update(self):
         self.rect.x, self.rect.y = self.pos
         if 'physical' in self.tags and self.tags['physical']:
-            self.physics_calculate()
-            collided = pygame.sprite.spritecollideany(self, game_global.collider_objects_group)
-            if collided and collided != self:
-                print(collided)
-    def physics_calculate(self):
-        self.velocity = (sum([v[0] for v in self.forces.values()]) // 1, sum([v[1] for v in self.forces.values()]) // 1)
-        # self.physical_speed = ((self.physical_speed[0] + self.velocity[0]) / 10, (self.physical_speed[1] + self.velocity[1]) / 10)
-        self.translate((
-            self.physical_speed[0] + self.velocity[0] / 2,
-            self.physical_speed[1] + self.velocity[1] / 2
-        ))
-        self.pos = (self.pos[0] // 1, self.pos[1] // 1)
+            self.body.angle = 0
+            self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
+            self.body.velocity *= 0.99
+
 
     def on_collision(self, other):
         pass
@@ -257,7 +276,7 @@ class Player(GameObject):
 
     def update(self):
         super().update()
-        self.forces['input_force'] = (self.move_input_axis[0] * self.move_speed, self.move_input_axis[1] * self.move_speed)
+        self.body.velocity += (self.move_input_axis[0] * self.move_speed, self.move_input_axis[1] * self.move_speed)
 
 
 if __name__ == '__main__':
@@ -276,11 +295,13 @@ if __name__ == '__main__':
         fps=60,
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt')
-
+    print(*[el for el in game_global.collider_objects_group])
     while game_global.program_running:
         screen.fill((0, 0, 0))
         game_global.update()
         game_global.render(screen)
+        game_global.game_manager.space.step(1 / 60)
+        #game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
         clock.tick(game_global.fps)
     pygame.quit()
