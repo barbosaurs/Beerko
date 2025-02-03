@@ -103,10 +103,11 @@ class GameManager:
 
 
 class GameGlobal:
-    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, gravity=(0, 0)):
+    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, gravity=(0, 0), rooms=()):
         self.program_running = True
         self.cam_pos = (0, 0)
         self.fps = fps
+        self.rooms = rooms
 
         self.all_objects_group = pygame.sprite.Group()
         self.physical_objects_group = pygame.sprite.Group()
@@ -164,23 +165,28 @@ class GameGlobal:
                 game_objects = [eval(f'{f2[0]}{f[i]}') for i in range(len(f))]
                 self.add_game_objects(tuple(game_objects))
         else:
-            fsymbols = open(kwargs['path_symbols'], encoding='utf-8').readlines()
-            prf = {}
-            for fs in fsymbols:
-                k, v = fs.split(' ')
-                v1, v2 = v.strip().split(':')
-                k, v1, v2 = k.strip(), v1.strip(), v2.strip()
-                prf[k] = (v1, v2)
-            game_objects = []
-            for x in range(len(f0)):
-                for y in range(len(f0[x])):
-                    if f0[x][y].strip() in prf.keys():
-                        v3 = prf[f0[x][y].strip()][1].rstrip(')') + f', pos=({y * kwargs["cell_size"]}, {x * kwargs["cell_size"]}))'
-                        game_objects += [eval(f'{prf[f0[x][y].strip()][0]}{v3}')]
-            self.add_game_objects(tuple(game_objects))
+            self.load_room(path, **kwargs)
             self.load_scene(path=kwargs['path2'], load_type='old')
         self.scene_start()
         return path
+
+    def load_room(self, path, **kwargs):
+        f0 = open(path, encoding='utf-8').readlines()
+        fsymbols = open(kwargs['path_symbols'], encoding='utf-8').readlines()
+        prf = {}
+        for fs in fsymbols:
+            k, v = fs.split(' ')
+            v1, v2 = v.strip().split(':')
+            k, v1, v2 = k.strip(), v1.strip(), v2.strip()
+            prf[k] = (v1, v2)
+        game_objects = []
+        for x in range(len(f0)):
+            for y in range(len(f0[x])):
+                if f0[x][y].strip() in prf.keys():
+                    v3 = prf[f0[x][y].strip()][1].rstrip(
+                        ')') + f', pos=({y * kwargs["cell_size"]}, {x * kwargs["cell_size"]}))'
+                    game_objects += [eval(f'{prf[f0[x][y].strip()][0]}{v3}')]
+        self.add_game_objects(tuple(game_objects))
 
     def add_game_objects(self, game_objects=()):
         self.game_objects += game_objects
@@ -313,9 +319,11 @@ if __name__ == '__main__':
         init_path='data/images/',
         sprites_path=(('bricks.png', 'bricks', 5), ('dirt.png', 'dirt', 5), ('dark_stone.png', 'dark_stone', 5), ('hp_from_bar.png', 'hp', 5), ('sign.png', 'sign', 5), ('player.png', 'player', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
-        fps=60, gravity=(0, 800)
+        fps=60, gravity=(0, 800),
+        rooms=('data/scenes/testroom.txt', 'data/scenes/testroom.txt')
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt')
+    # game_global.load_room(game_global.rooms[0], cell_size=40, path_symbols='data/prefabs_symbols.txt')
     # print(*[el for el in game_global.collider_objects_group])
     while game_global.program_running:
         screen.fill((0, 0, 0))
