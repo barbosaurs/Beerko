@@ -58,6 +58,8 @@ class GameManager:
         surface = pygame.display.set_mode((1200, 680))
         self.draw_options = pymunk.pygame_util.DrawOptions(surface)
 
+        self.cur_room = 0
+
     def load_keys(self, keys_path):
         f = open(keys_path).readlines()
         for i in f:
@@ -72,7 +74,6 @@ class GameManager:
 
     def jump(self):
         [player.jump() for player in self.players]
-
 
     def update(self):
         self.move_input_axis = (0, 0)
@@ -97,6 +98,12 @@ class GameManager:
                     eval(v[0])
         [player.set_move_input_axis(self.move_input_axis) for player in self.players]
 
+        for i in range(len(game_global.rooms_x)):
+            if self.players[0].pos[0] >= game_global.rooms_x[i]:
+                self.cur_room = i
+                game_global.cam_pos = (game_global.rooms_x[self.cur_room], game_global.cam_pos[1])
+
+
 
     def scene_start(self):
         pass
@@ -108,6 +115,7 @@ class GameGlobal:
         self.cam_pos = (0, 0)
         self.fps = fps
         self.rooms = rooms
+        self.rooms_x = [0]
         self.last_room_x = 0
 
         self.all_objects_group = pygame.sprite.Group()
@@ -189,6 +197,7 @@ class GameGlobal:
                     game_objects += [eval(f'{prf[f0[x][y].strip()][0]}{v3}')]
         self.add_game_objects(tuple(game_objects))
         self.last_room_x += len(f0[0]) - 1
+        self.rooms_x += [self.last_room_x]
 
     def add_game_objects(self, game_objects=()):
         self.game_objects += game_objects
@@ -323,10 +332,11 @@ if __name__ == '__main__':
         sprites_path=(('bricks.png', 'bricks', 5), ('dirt.png', 'dirt', 5), ('dark_stone.png', 'dark_stone', 5), ('hp_from_bar.png', 'hp', 5), ('sign.png', 'sign', 5), ('player.png', 'player', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60, gravity=(0, 1600),
-        rooms=('data/scenes/testroom.txt', 'data/scenes/testroom.txt')
+        rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt')
     game_global.load_room(game_global.rooms[0], cell_size=40, path_symbols='data/prefabs_symbols.txt')
+    game_global.load_room(game_global.rooms[1], cell_size=40, path_symbols='data/prefabs_symbols.txt')
     # print(*[el for el in game_global.collider_objects_group])
     while game_global.program_running:
         screen.fill((0, 0, 0))
