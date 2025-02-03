@@ -59,6 +59,7 @@ class GameManager:
         self.draw_options = pymunk.pygame_util.DrawOptions(surface)
 
         self.cur_room = 0
+        self.cam_speed = 50
 
     def load_keys(self, keys_path):
         f = open(keys_path).readlines()
@@ -99,11 +100,11 @@ class GameManager:
         [player.set_move_input_axis(self.move_input_axis) for player in self.players]
 
         for i in range(len(game_global.rooms_x)):
-            if self.players[0].pos[0] >= game_global.rooms_x[i]:
+            if self.players[0].pos[0] > game_global.rooms_x[i] * game_global.cell_size:
                 self.cur_room = i
-                game_global.cam_pos = (game_global.rooms_x[self.cur_room], game_global.cam_pos[1])
-
-
+        if game_global.cam_pos[0] < game_global.rooms_x[self.cur_room] * game_global.cell_size:
+            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size / game_global.fps, game_global.cam_pos[1])
+        game_global.cam_pos = (min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
 
     def scene_start(self):
         pass
@@ -117,6 +118,7 @@ class GameGlobal:
         self.rooms = rooms
         self.rooms_x = [0]
         self.last_room_x = 0
+        self.cell_size = 40
 
         self.all_objects_group = pygame.sprite.Group()
         self.physical_objects_group = pygame.sprite.Group()
@@ -180,6 +182,8 @@ class GameGlobal:
         return path
 
     def load_room(self, path, **kwargs):
+        self.cell_size = kwargs["cell_size"]
+
         f0 = open(path, encoding='utf-8').readlines()
         fsymbols = open(kwargs['path_symbols'], encoding='utf-8').readlines()
         prf = {}
