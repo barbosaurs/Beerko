@@ -293,11 +293,8 @@ class Player(GameObject):
         self.body.velocity += (self.move_input_axis[0] * self.move_speed, 0)
 
     def jump(self):
-        for target_shape in game_global.find_objects_with_tag("is_floor", True):
-            if target_shape.rect.colliderect(self.rect):
-                self.body.velocity += (0, -self.jump_strength)
-                # print('jump')
-                break
+        if abs(self.body.velocity[1]) < 0.5:
+            self.body.velocity += (0, -self.jump_strength)
 
 
 if __name__ == '__main__':
