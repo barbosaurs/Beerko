@@ -2,9 +2,9 @@ import pygame
 import math
 import pymunk
 import pymunk.pygame_util
-pymunk.pygame_util.positive_y_is_up = False
 from random import randrange
 
+pymunk.pygame_util.positive_y_is_up = False
 game_global = None
 
 
@@ -15,7 +15,7 @@ def create_rigidbody(space, pos, size):
     square_body = pymunk.Body(square_mass, square_moment)
     square_body.position = body_pos
     square_shape = pymunk.Poly.create_box(square_body, square_size)
-    # square_shape.elasticity = 0.0
+    square_shape.elasticity = 0.0
     square_shape.friction = 1.0
     square_shape.color = [randrange(256) for i in range(4)]
     space.add(square_body, square_shape)
@@ -28,7 +28,7 @@ def create_static_collider(space, pos, size):
     rect_shape = pymunk.Poly.create_box(static_body, size=size)
     rect_shape.body.position = body_pos
     # rect_shape.elasticity = 0.0
-    rect_shape.friction = 1.0
+    rect_shape.friction = 0
     space.add(rect_shape)
     return static_body, rect_shape
 
@@ -45,7 +45,7 @@ class GameRenderer:
 
 
 class GameManager:
-    def __init__(self, keys_path):
+    def __init__(self, keys_path, gravity):
         self.players = []
         self.buttons_pressed = set()
         self.move_input_axis = (0, 0)
@@ -54,21 +54,25 @@ class GameManager:
         self.load_keys(keys_path)
 
         self.space = pymunk.Space()
-        self.space.gravity = 0, 0
-        # surface = pygame.display.set_mode((1200, 680))
-        # self.draw_options = pymunk.pygame_util.DrawOptions(surface)
+        self.space.gravity = gravity
+        surface = pygame.display.set_mode((1200, 680))
+        self.draw_options = pymunk.pygame_util.DrawOptions(surface)
 
     def load_keys(self, keys_path):
         f = open(keys_path).readlines()
         for i in f:
-            k, v = i.split(';')
-            self.input_keys[int(k)] = v
+            k, v, v1 = i.split(';')
+            self.input_keys[int(k)] = (v, v1.strip())
 
     def add_players(self, players):
         self.players += players
 
     def add_move_input_axis(self, vector=(0, 0)):
         self.move_input_axis = (self.move_input_axis[0] + vector[0], self.move_input_axis[1] + vector[1])
+
+    def jump(self):
+        [player.jump() for player in self.players]
+
 
     def update(self):
         self.move_input_axis = (0, 0)
@@ -77,12 +81,20 @@ class GameManager:
                 game_global.program_running = False
             if event.type == pygame.MOUSEWHEEL:
                 game_global.cam_pos = (game_global.cam_pos[0] + event.x, game_global.cam_pos[1] - event.y)
-            # if event.type == pygame.KEYDOWN:
-            #     print(event.key)
+            if event.type == pygame.KEYDOWN:
+                for k, v in self.input_keys.items():
+                    if event.key == k:
+                        if v[1] == '1':
+                            # print(k)
+                            eval(v[0])
+                # if event.key == pygame.K_w:
+                #     [player.jump() for player in self.players]
+                #     print(event.key)
         keys = pygame.key.get_pressed()
         for k, v in self.input_keys.items():
             if keys[k]:
-                eval(v)
+                if v[1] == '0':
+                    eval(v[0])
         [player.set_move_input_axis(self.move_input_axis) for player in self.players]
 
 
@@ -91,7 +103,7 @@ class GameManager:
 
 
 class GameGlobal:
-    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60):
+    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, gravity=(0, 0)):
         self.program_running = True
         self.cam_pos = (0, 0)
         self.fps = fps
@@ -102,7 +114,7 @@ class GameGlobal:
 
         self.game_objects = game_objects
         self.game_renderer = GameRenderer(self.game_objects)
-        self.game_manager = GameManager(keys_path)
+        self.game_manager = GameManager(keys_path, gravity)
         [obj.start() for obj in self.game_objects]
         self.collisions = {}
 
@@ -191,10 +203,10 @@ class GameGlobal:
 
 
 class GameObject(pygame.sprite.Sprite):
-    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), gravity=(0, 0), **tags):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), **tags):
         super().__init__(game_global.all_objects_group)
 
-        self.pos, self.size, self.scale, self.name, self.im, self.color, self.gravity = [None] * 7
+        self.pos, self.size, self.scale, self.name, self.im, self.color = [None] * 6
         self.tags = {}
         if prefab != '' and prefab in game_global.prefabs.keys():
             for k in game_global.prefabs[prefab].keys():
@@ -216,8 +228,6 @@ class GameObject(pygame.sprite.Sprite):
             self.im = im
         if self.color is None:
             self.color = color
-        if self.gravity is None:
-            self.gravity = gravity
 
         for k, v in tags.items():
             if k not in self.tags.keys():
@@ -244,8 +254,10 @@ class GameObject(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = self.pos
         if 'physical' in self.tags and self.tags['physical']:
             self.body.angle = 0
+            # self.body.angular_velocity = 0
             self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
             self.body.velocity *= 0.99
+            # self.body.
 
 
     def on_collision(self, other):
@@ -265,23 +277,32 @@ class GameObject(pygame.sprite.Sprite):
 
 
 class Player(GameObject):
-    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255),  gravity=(0, 0), move_speed=1, **tags):
-        super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, gravity=gravity, **tags)
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), move_speed=1, jump_strength=1, **tags):
+        super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
         self.move_input_axis = (0, 0)
         if self.move_speed is None:
             self.move_speed = move_speed
+        if self.jump_strength is None:
+            self.jump_strength = jump_strength
 
     def set_move_input_axis(self, vector=(0, 0)):
         self.move_input_axis = vector
 
     def update(self):
         super().update()
-        self.body.velocity += (self.move_input_axis[0] * self.move_speed, self.move_input_axis[1] * self.move_speed)
+        self.body.velocity += (self.move_input_axis[0] * self.move_speed, 0)
+
+    def jump(self):
+        for target_shape in game_global.find_objects_with_tag("is_floor", True):
+            if target_shape.rect.colliderect(self.rect):
+                self.body.velocity += (0, -self.jump_strength)
+                print('jump')
+                break
 
 
 if __name__ == '__main__':
     pygame.init()
-    pygame.display.set_caption('Alpha something...')
+    pygame.display.set_caption('Platformer alpha')
     size = width, height = 1200, 680  # 30x17 cells
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
@@ -290,9 +311,9 @@ if __name__ == '__main__':
     images = {}
     game_global = GameGlobal(
         init_path='data/images/',
-        sprites_path=(('bricks.png', 'bricks', 5), ('dirt.png', 'dirt', 5), ('dark_stone.png', 'dark_stone', 5), ('hp_from_bar.png', 'hp', 5), ('sign.png', 'sign', 5)),
+        sprites_path=(('bricks.png', 'bricks', 5), ('dirt.png', 'dirt', 5), ('dark_stone.png', 'dark_stone', 5), ('hp_from_bar.png', 'hp', 5), ('sign.png', 'sign', 5), ('player.png', 'player', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
-        fps=60,
+        fps=60, gravity=(0, 800)
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt')
     print(*[el for el in game_global.collider_objects_group])
@@ -301,7 +322,7 @@ if __name__ == '__main__':
         game_global.update()
         game_global.render(screen)
         game_global.game_manager.space.step(1 / 60)
-        #game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
+        # game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
         clock.tick(game_global.fps)
     pygame.quit()
