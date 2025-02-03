@@ -296,7 +296,7 @@ class Player(GameObject):
         for target_shape in game_global.find_objects_with_tag("is_floor", True):
             if target_shape.rect.colliderect(self.rect):
                 self.body.velocity += (0, -self.jump_strength)
-                print('jump')
+                # print('jump')
                 break
 
 
@@ -316,7 +316,7 @@ if __name__ == '__main__':
         fps=60, gravity=(0, 800)
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt')
-    print(*[el for el in game_global.collider_objects_group])
+    # print(*[el for el in game_global.collider_objects_group])
     while game_global.program_running:
         screen.fill((0, 0, 0))
         game_global.update()
