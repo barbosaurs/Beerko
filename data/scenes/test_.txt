@@ -1,1 +1,2 @@
-Player:(pos=(720, 200), prefab="player")
+Player:(pos=(760, 200), prefab="player")
+GameObject:(pos=(760, 240), prefab="dirt")

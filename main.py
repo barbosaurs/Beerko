@@ -38,7 +38,7 @@ class GameRenderer:
         self.game_objects = game_objects
 
     def render(self, group, screen):
-        [screen.blit(obj.image, (obj.pos[0] - game_global.cam_pos[0], obj.pos[1] - game_global.cam_pos[1])) for obj in sorted(group, key=lambda x: x.renderLayer)]
+        [screen.blit(obj.image, (obj.pos[0] - game_global.cam_pos[0] * obj.parallax_x, obj.pos[1] - game_global.cam_pos[1] * obj.parallax_y)) for obj in sorted(group, key=lambda x: x.renderLayer)]
 
     def scene_start(self):
         pass
@@ -271,6 +271,19 @@ class GameObject(pygame.sprite.Sprite):
         if 'layer' in self.tags:
             self.renderLayer = int(self.tags['layer'])
 
+        if 'mult_sprites' in self.tags:
+            self.anim_speeds = {}
+            for i in self.tags['animations'].split():
+                self.anim_speeds[i] = self.tags[f'anim_{i}_speed'] if f'anim_{i}_speed' in self.tags else 1
+            self.cur_image = 0
+            self.cur_animation = self.tags['animations'].split()[0]
+            self.mult_sprites = self.tags['mult_sprites'].split()
+
+        if 'parallax' in self.tags:
+            self.parallax_x, self.parallax_y = self.tags['parallax']
+        else:
+            self.parallax_x, self.parallax_y = 1, 1
+
 
     def start(self):
         pass
@@ -283,6 +296,13 @@ class GameObject(pygame.sprite.Sprite):
             self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
             self.body.velocity *= 0.99
             # self.body.
+        if 'mult_sprites' in self.tags:
+            if int(self.cur_image) < self.tags[f'anim_{self.cur_animation}_borders'][0]:
+                self.cur_image = self.tags[f'anim_{self.cur_animation}_borders'][1]
+            if int(self.cur_image) > self.tags[f'anim_{self.cur_animation}_borders'][1]:
+                self.cur_image = self.tags[f'anim_{self.cur_animation}_borders'][0]
+            self.image = images[self.mult_sprites[int(self.cur_image)]]
+            self.cur_image += 1 * self.anim_speeds[self.cur_animation] / game_global.fps
 
 
     def on_collision(self, other):
@@ -311,11 +331,18 @@ class Player(GameObject):
             self.jump_strength = jump_strength
 
     def set_move_input_axis(self, vector=(0, 0)):
+        self.scale = (self.scale[0], self.scale[1]) if vector[0] == self.move_input_axis[0] else (-self.scale[0], self.scale[1])
         self.move_input_axis = vector
 
     def update(self):
         super().update()
         self.body.velocity += (self.move_input_axis[0] * self.move_speed, 0)
+        if abs(self.move_input_axis[0]) <= 0:
+            self.cur_animation = 'stay'
+            self.body.velocity = (self.body.velocity[0] * 0.8, self.body.velocity[1])
+        else:
+            self.cur_animation = 'move'
+            self.body.velocity = (min(700, max(-700, self.body.velocity[0])), self.body.velocity[1])
 
     def jump(self):
         if abs(self.body.velocity[1]) < 0.5:
@@ -333,9 +360,10 @@ if __name__ == '__main__':
     images = {}
     game_global = GameGlobal(
         init_path='data/images/',
-        sprites_path=(('bricks.png', 'bricks', 5), ('dirt.png', 'dirt', 5), ('dark_stone.png', 'dark_stone', 5), ('hp_from_bar.png', 'hp', 5), ('sign.png', 'sign', 5), ('player.png', 'player', 5)),
+        sprites_path=(('bricks.png', 'bricks', 5), ('dirt.png', 'dirt', 5), ('dark_stone.png', 'dark_stone', 5), ('hp_from_bar.png', 'hp', 5), ('sign.png', 'sign', 5), ('player.png', 'player', 5),
+                      ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
-        fps=60, gravity=(0, 1600),
+        fps=60, gravity=(0, 3200),
         rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt')
