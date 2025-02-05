@@ -1,4 +1,7 @@
 b GameObject:(prefab="bricks")
+B GameObject:(prefab="bricks1")
 - GameObject:(prefab="dirt")
-0 GameObject:(prefab="dark_stone")
+0 GameObject:(prefab="bricks_bg")
+. GameObject:(prefab="glass")
+* GameObject:(prefab="star")
 @ Player:(prefab="player")
