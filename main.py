@@ -83,13 +83,11 @@ class GameManager:
         if self.game_time_left > 0:
             [player.jump() for player in self.players]
 
-    def update(self):
+    def update(self, dt):
         self.move_input_axis = (0, 0)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game_global.program_running = False
-            if event.type == pygame.MOUSEWHEEL:
-                game_global.cam_pos = (game_global.cam_pos[0] + event.x, game_global.cam_pos[1] - event.y)
             if event.type == pygame.KEYDOWN:
                 for k, v in self.input_keys.items():
                     if event.key == k:
@@ -112,7 +110,7 @@ class GameManager:
         if self.players[0].pos[0] > game_global.rooms_x[-1] * game_global.cell_size:
             game_global.load_rnd_room()
         if game_global.cam_pos[0] < game_global.rooms_x[self.cur_room] * game_global.cell_size:
-            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size / game_global.fps, game_global.cam_pos[1])
+            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size * dt, game_global.cam_pos[1])
         game_global.cam_pos = (min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
 
         if self.players[0].pos[0] > game_global.rooms_x[1] * game_global.cell_size and not self.game_started:
@@ -120,7 +118,7 @@ class GameManager:
             self.game_time_left = self.game_time_max
         if self.game_started:
             if self.game_time_left > 0:
-                self.game_time_left -= 1/game_global.fps
+                self.game_time_left -= dt
                 print(self.game_time_left)
             else:
                 print('Game ended.')
@@ -241,9 +239,9 @@ class GameGlobal:
     def find_objects_with_tag(self, k, v):
         return list(filter(lambda x: k in x.tags.keys() and x.tags[k] == v, self.game_objects))
 
-    def update(self):
+    def update(self, dt):
         # self.game_renderer.update()
-        self.game_manager.update()
+        self.game_manager.update(dt)
         [obj.update() for obj in self.game_objects]
 
 
@@ -410,10 +408,10 @@ if __name__ == '__main__':
     # print(*[el for el in game_global.collider_objects_group])
     while game_global.program_running:
         screen.fill((0, 10, 10))
-        game_global.update()
+        dt = clock.tick(game_global.fps) / 1000
+        game_global.update(dt)
         game_global.render(screen)
-        game_global.game_manager.space.step(1 / 60)
+        game_global.game_manager.space.step(dt * 40 / 60)
         # game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
-        clock.tick(game_global.fps)
     pygame.quit()
