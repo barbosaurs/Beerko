@@ -121,7 +121,6 @@ class GameManager:
         if self.game_started:
             if self.game_time_left > 0:
                 self.game_time_left -= 1/game_global.fps
-                print(self.game_time_left)
             else:
                 print('Game ended.')
 
@@ -138,6 +137,7 @@ class GameGlobal:
         self.rooms_x = [0]
         self.last_room_x = 0
         self.cell_size = 40
+        self.placed_rooms = {}
 
         self.all_objects_group = pygame.sprite.Group()
         self.physical_objects_group = pygame.sprite.Group()
@@ -206,6 +206,19 @@ class GameGlobal:
         game_global.load_room(game_global.rooms[random.randrange(0, len(game_global.rooms))], cell_size=40, path_symbols='data/prefabs_symbols.txt')
 
     def load_room(self, path, **kwargs):
+        if path in self.placed_rooms.keys() and self.placed_rooms[path][1] != self.last_room_x:
+            print(self.last_room_x, self.placed_rooms[path][0][0])
+
+            delta_x = (self.last_room_x - self.placed_rooms[path][1] + self.placed_rooms[path][2]) * self.cell_size
+            [obj.translate((1, 0), delta_x) for obj in self.placed_rooms[path][0]]
+
+            self.last_room_x += self.placed_rooms[path][2]
+            self.placed_rooms[path][1] = self.last_room_x
+            self.rooms_x += [self.last_room_x]
+            print(self.last_room_x, self.placed_rooms[path][0][0], self.game_manager.players[0])
+            return
+
+        room_objects = []
         self.cell_size = kwargs["cell_size"]
 
         f0 = open(path, encoding='utf-8').readlines()
@@ -222,14 +235,17 @@ class GameGlobal:
                 if f0[x][y].strip() in prf.keys():
                     v3 = prf[f0[x][y].strip()][1].rstrip(
                         ')') + f', pos=({(y + self.last_room_x) * kwargs["cell_size"]}, {x * kwargs["cell_size"]}))'
-                    game_objects += [eval(f'{prf[f0[x][y].strip()][0]}{v3}')]
+                    room_objects += [eval(f'{prf[f0[x][y].strip()][0]}{v3}')]
         self.add_game_objects(tuple(game_objects))
         if 'add_x' in kwargs and kwargs['add_x'] == False:
             pass
         else:
             self.last_room_x += len(f0[0]) - 1
             self.rooms_x += [self.last_room_x]
-        print('room placed.')
+        game_objects += room_objects
+        self.placed_rooms[path] = [room_objects, self.last_room_x, len(f0[0]) - 1]
+        print(self.placed_rooms[path])
+        print(len(self.placed_rooms[path]), len(self.placed_rooms[path][0]), len(f0[0]))
 
     def add_game_objects(self, game_objects=()):
         self.game_objects += game_objects
@@ -355,6 +371,7 @@ class GameObject(pygame.sprite.Sprite):
 
     def translate(self, vector=(0, 0), strength=1):
         self.pos = (self.pos[0] + vector[0] * strength, self.pos[1] + vector[1] * strength)
+        self.rect.x, self.rect.y = self.pos
 
     def __str__(self):
         return f'GameObject {self.name} {self.get_transform()}'
