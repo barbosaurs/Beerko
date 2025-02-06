@@ -83,22 +83,18 @@ class GameManager:
         if self.game_time_left > 0:
             [player.jump() for player in self.players]
 
-    def update(self):
+    def update(self, dt):
         self.move_input_axis = (0, 0)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game_global.program_running = False
-            if event.type == pygame.MOUSEWHEEL:
-                game_global.cam_pos = (game_global.cam_pos[0] + event.x, game_global.cam_pos[1] - event.y)
             if event.type == pygame.KEYDOWN:
                 for k, v in self.input_keys.items():
                     if event.key == k:
                         if v[1] == '1':
                             # print(k)
                             eval(v[0])
-                # if event.key == pygame.K_w:
-                #     [player.jump() for player in self.players]
-                #     print(event.key)
+                #print(event.key)
         keys = pygame.key.get_pressed()
         for k, v in self.input_keys.items():
             if keys[k]:
@@ -112,7 +108,7 @@ class GameManager:
         if self.players[0].pos[0] > game_global.rooms_x[-1] * game_global.cell_size:
             game_global.load_rnd_room()
         if game_global.cam_pos[0] < game_global.rooms_x[self.cur_room] * game_global.cell_size:
-            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size / game_global.fps, game_global.cam_pos[1])
+            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size * dt, game_global.cam_pos[1])
         game_global.cam_pos = (min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
 
         if self.players[0].pos[0] > game_global.rooms_x[1] * game_global.cell_size and not self.game_started:
@@ -120,7 +116,12 @@ class GameManager:
             self.game_time_left = self.game_time_max
         if self.game_started:
             if self.game_time_left > 0:
+<<<<<<< HEAD
                 self.game_time_left -= 1/game_global.fps
+=======
+                self.game_time_left -= dt
+                print(self.game_time_left)
+>>>>>>> bfe087311fc65b5f46f8dc3170e27e6443a23f9c
             else:
                 print('Game ended.')
 
@@ -257,9 +258,9 @@ class GameGlobal:
     def find_objects_with_tag(self, k, v):
         return list(filter(lambda x: k in x.tags.keys() and x.tags[k] == v, self.game_objects))
 
-    def update(self):
+    def update(self, dt):
         # self.game_renderer.update()
-        self.game_manager.update()
+        self.game_manager.update(dt)
         [obj.update() for obj in self.game_objects]
 
 
@@ -405,6 +406,24 @@ class Player(GameObject):
             self.body.velocity += (0, -self.jump_strength)
 
 
+class Interactable(GameObject):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255), **tags):
+        super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
+        self.is_pressed = False
+
+    def update(self):
+        super().update()
+        if self.rect.colliderect(game_global.game_manager.players[0].rect):
+            if not self.is_pressed:
+                self.is_pressed = True
+        else:
+            self.is_pressed = False
+
+
+def escape():
+    game_global.program_running = False
+
+
 if __name__ == '__main__':
     pygame.init()
     pygame.display.set_caption('Platformer alpha')
@@ -418,7 +437,7 @@ if __name__ == '__main__':
         init_path='data/images/',
         sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5), ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5), ('player.png', 'player', 5),
                       ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
-                      ('star0.png', 'star0', 5)),
+                      ('star0.png', 'star0', 5), ('button.png', 'button', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60, gravity=(0, 3200),
         rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
@@ -427,10 +446,10 @@ if __name__ == '__main__':
     # print(*[el for el in game_global.collider_objects_group])
     while game_global.program_running:
         screen.fill((0, 10, 10))
-        game_global.update()
+        dt = clock.tick(game_global.fps) / 1000
+        game_global.update(dt)
         game_global.render(screen)
-        game_global.game_manager.space.step(1 / 60)
+        game_global.game_manager.space.step(dt * 40 / 60)
         # game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
-        clock.tick(game_global.fps)
     pygame.quit()
