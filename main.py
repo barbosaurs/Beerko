@@ -116,12 +116,9 @@ class GameManager:
             self.game_time_left = self.game_time_max
         if self.game_started:
             if self.game_time_left > 0:
-<<<<<<< HEAD
                 self.game_time_left -= 1/game_global.fps
-=======
                 self.game_time_left -= dt
                 print(self.game_time_left)
->>>>>>> bfe087311fc65b5f46f8dc3170e27e6443a23f9c
             else:
                 print('Game ended.')
 
