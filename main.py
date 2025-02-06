@@ -388,12 +388,15 @@ class Interactable(GameObject):
     def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255), **tags):
         super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
         self.is_pressed = False
+        if "func" in self.tags:
+            self.func = self.tags["func"]
 
     def update(self):
         super().update()
         if self.rect.colliderect(game_global.game_manager.players[0].rect):
             if not self.is_pressed:
                 self.is_pressed = True
+                eval(self.func)
         else:
             self.is_pressed = False
 
