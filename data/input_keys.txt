@@ -8,3 +8,4 @@
 1073741906;self.add_move_input_axis((0, -1));0
 1073741906;self.jump();1
 1073741905;self.add_move_input_axis((0, 1));0
+27;escape();1

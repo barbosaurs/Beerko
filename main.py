@@ -94,9 +94,7 @@ class GameManager:
                         if v[1] == '1':
                             # print(k)
                             eval(v[0])
-                # if event.key == pygame.K_w:
-                #     [player.jump() for player in self.players]
-                #     print(event.key)
+                #print(event.key)
         keys = pygame.key.get_pressed()
         for k, v in self.input_keys.items():
             if keys[k]:
@@ -386,6 +384,24 @@ class Player(GameObject):
             self.body.velocity += (0, -self.jump_strength)
 
 
+class Interactable(GameObject):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255), **tags):
+        super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
+        self.is_pressed = False
+
+    def update(self):
+        super().update()
+        if self.rect.colliderect(game_global.game_manager.players[0].rect):
+            if not self.is_pressed:
+                self.is_pressed = True
+        else:
+            self.is_pressed = False
+
+
+def escape():
+    game_global.program_running = False
+
+
 if __name__ == '__main__':
     pygame.init()
     pygame.display.set_caption('Platformer alpha')
@@ -399,7 +415,7 @@ if __name__ == '__main__':
         init_path='data/images/',
         sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5), ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5), ('player.png', 'player', 5),
                       ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
-                      ('star0.png', 'star0', 5)),
+                      ('star0.png', 'star0', 5), ('button.png', 'button', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60, gravity=(0, 3200),
         rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
