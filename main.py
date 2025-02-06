@@ -205,7 +205,7 @@ class GameGlobal:
 
     def load_room(self, path, **kwargs):
         if path in self.placed_rooms.keys() and self.placed_rooms[path][1] != self.last_room_x:
-            print(self.last_room_x, self.placed_rooms[path][0][0])
+            # print(self.last_room_x, self.placed_rooms[path][0][0])
 
             delta_x = (self.last_room_x - self.placed_rooms[path][1] + self.placed_rooms[path][2]) * self.cell_size
             [obj.translate((1, 0), delta_x) for obj in self.placed_rooms[path][0]]
@@ -213,7 +213,7 @@ class GameGlobal:
             self.last_room_x += self.placed_rooms[path][2]
             self.placed_rooms[path][1] = self.last_room_x
             self.rooms_x += [self.last_room_x]
-            print(self.last_room_x, self.placed_rooms[path][0][0], self.game_manager.players[0])
+            # print(self.last_room_x, self.placed_rooms[path][0][0], self.game_manager.players[0])
             return
 
         room_objects = []
@@ -234,16 +234,16 @@ class GameGlobal:
                     v3 = prf[f0[x][y].strip()][1].rstrip(
                         ')') + f', pos=({(y + self.last_room_x) * kwargs["cell_size"]}, {x * kwargs["cell_size"]}))'
                     room_objects += [eval(f'{prf[f0[x][y].strip()][0]}{v3}')]
-        self.add_game_objects(tuple(game_objects))
         if 'add_x' in kwargs and kwargs['add_x'] == False:
             pass
         else:
             self.last_room_x += len(f0[0]) - 1
             self.rooms_x += [self.last_room_x]
         game_objects += room_objects
+        self.add_game_objects(tuple(game_objects))
         self.placed_rooms[path] = [room_objects, self.last_room_x, len(f0[0]) - 1]
-        print(self.placed_rooms[path])
-        print(len(self.placed_rooms[path]), len(self.placed_rooms[path][0]), len(f0[0]))
+        # print(self.placed_rooms[path])
+        # print(len(self.placed_rooms[path]), len(self.placed_rooms[path][0]), len(f0[0]))
 
     def add_game_objects(self, game_objects=()):
         self.game_objects += game_objects
