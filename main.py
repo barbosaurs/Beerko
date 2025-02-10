@@ -122,6 +122,10 @@ class GameManager:
             else:
                 print('Game ended.')
 
+        if self.players[0].pos[0] == min(self.players[0].pos[0], game_global.cam_pos[0] + 20):
+            print(self.players[0].pos[0])
+            self.players[0].set_pos((game_global.cam_pos[0] + 21, self.players[0].pos[1]))
+
     def scene_start(self):
         pass
 
@@ -347,6 +351,7 @@ class GameObject(pygame.sprite.Sprite):
             self.body.angle = 0
             # self.body.angular_velocity = 0
             self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
+            # self.body.position = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
             self.body.velocity *= 0.99
             # self.body.
         if 'mult_sprites' in self.tags:
@@ -370,6 +375,14 @@ class GameObject(pygame.sprite.Sprite):
     def translate(self, vector=(0, 0), strength=1):
         self.pos = (self.pos[0] + vector[0] * strength, self.pos[1] + vector[1] * strength)
         self.rect.x, self.rect.y = self.pos
+        # if 'has_collider' in self.tags:
+        #     self.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
+
+    def set_pos(self, vector):
+        self.pos = vector
+        self.rect.x, self.rect.y = self.pos
+        if 'has_collider' in self.tags:
+            self.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
 
     def __str__(self):
         return f'GameObject {self.name} {self.get_transform()}'
