@@ -118,7 +118,7 @@ class GameManager:
             if self.game_time_left > 0:
                 self.game_time_left -= 1/game_global.fps
                 self.game_time_left -= dt
-                print(self.game_time_left)
+                # print(self.game_time_left)
             else:
                 print('Game ended.')
 
@@ -383,6 +383,11 @@ class GameObject(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = self.pos
         if 'has_collider' in self.tags:
             self.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
+        if 'has_collider' in self.tags and self.tags['has_collider']:
+            self.body.position = self.rect.x, self.rect.y
+            self.body.angle = 0
+            print("translate")
+            #self.shape.po
 
     def __str__(self):
         return f'GameObject {self.name} {self.get_transform()}'
@@ -468,6 +473,6 @@ if __name__ == '__main__':
         game_global.update(dt)
         game_global.render(screen)
         game_global.game_manager.space.step(dt * 40 / 60)
-        # game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
+        #game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
     pygame.quit()
