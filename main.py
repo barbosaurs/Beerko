@@ -123,7 +123,6 @@ class GameManager:
                 print('Game ended.')
 
         if self.players[0].pos[0] == min(self.players[0].pos[0], game_global.cam_pos[0] + 20):
-            print(self.players[0].pos[0])
             self.players[0].set_pos((game_global.cam_pos[0] + 21, self.players[0].pos[1]))
 
     def scene_start(self):
@@ -209,7 +208,7 @@ class GameGlobal:
 
     def load_room(self, path, **kwargs):
         if path in self.placed_rooms.keys() and self.placed_rooms[path][1] != self.last_room_x:
-            # print(self.last_room_x, self.placed_rooms[path][0][0])
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position)
 
             delta_x = (self.last_room_x - self.placed_rooms[path][1] + self.placed_rooms[path][2]) * self.cell_size
             [obj.translate((1, 0), delta_x) for obj in self.placed_rooms[path][0]]
@@ -217,7 +216,7 @@ class GameGlobal:
             self.last_room_x += self.placed_rooms[path][2]
             self.placed_rooms[path][1] = self.last_room_x
             self.rooms_x += [self.last_room_x]
-            # print(self.last_room_x, self.placed_rooms[path][0][0], self.game_manager.players[0])
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position)
             return
 
         room_objects = []
@@ -264,6 +263,7 @@ class GameGlobal:
         self.game_manager.update(dt)
         [obj.update() for obj in self.game_objects]
 
+        # print(self.placed_rooms[self.rooms[0]][0][0].pos, self.placed_rooms[self.rooms[0]][0][0].rect, self.placed_rooms[self.rooms[0]][0][0].body.position)
 
     def render(self, screen):
         self.game_renderer.render(self.all_objects_group, screen)
@@ -308,6 +308,7 @@ class GameObject(pygame.sprite.Sprite):
         if 'has_collider' in self.tags and self.tags['has_collider']:
             self.add(game_global.collider_objects_group)
             self.body, self.shape = create_static_collider(game_global.game_manager.space, self.pos, self.size)
+            print(self.body.position, self.shape.body.position)
 
         if 'physical' in self.tags and self.tags['physical']:
             self.add(game_global.physical_objects_group)
@@ -375,19 +376,16 @@ class GameObject(pygame.sprite.Sprite):
     def translate(self, vector=(0, 0), strength=1):
         self.pos = (self.pos[0] + vector[0] * strength, self.pos[1] + vector[1] * strength)
         self.rect.x, self.rect.y = self.pos
-        # if 'has_collider' in self.tags:
-        #     self.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
+        if 'has_collider' in self.tags:
+            self.shape.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
+            print(self.shape.body.position, self.pos[0], self.size[0] / 2, self.pos[1] + self.size[1] / 2)
 
     def set_pos(self, vector):
         self.pos = vector
         self.rect.x, self.rect.y = self.pos
         if 'has_collider' in self.tags:
-            self.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
-        if 'has_collider' in self.tags and self.tags['has_collider']:
-            self.body.position = self.rect.x, self.rect.y
-            self.body.angle = 0
-            print("translate")
-            #self.shape.po
+            self.shape.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
+            print(self.shape.body.position, self.pos[0], self.size[0] / 2, self.pos[1] + self.size[1] / 2)
 
     def __str__(self):
         return f'GameObject {self.name} {self.get_transform()}'
@@ -473,6 +471,6 @@ if __name__ == '__main__':
         game_global.update(dt)
         game_global.render(screen)
         game_global.game_manager.space.step(dt * 40 / 60)
-        #game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
+        # game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
     pygame.quit()
