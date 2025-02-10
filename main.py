@@ -63,7 +63,7 @@ class GameManager:
         self.cam_speed = 50
 
         self.game_started = False
-        self.game_time_max = 20
+        self.game_time_max = 200
         self.game_time_left = self.game_time_max
 
     def load_keys(self, keys_path):
@@ -400,7 +400,12 @@ class Player(GameObject):
 
     def jump(self):
         if abs(self.body.velocity[1]) < 0.5:
-            self.body.velocity += (0, -self.jump_strength)
+            self.impulse((0, self.jump_strength))
+
+    def impulse(self, vector, reset=True):
+        if reset:
+            self.body.velocity = (0, 0)
+        self.body.velocity += (0, -vector[1])
 
 
 class Interactable(GameObject):
@@ -437,7 +442,7 @@ if __name__ == '__main__':
         init_path='data/images/',
         sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5), ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5), ('player.png', 'player', 5),
                       ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
-                      ('star0.png', 'star0', 5), ('button.png', 'button', 5)),
+                      ('star0.png', 'star0', 5), ('button.png', 'button', 5), ('spring.png', 'spring', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60, gravity=(0, 3200),
         rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
