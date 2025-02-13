@@ -18,6 +18,9 @@ def create_rigidbody(space, pos, size):
     square_shape = pymunk.Poly.create_box(square_body, square_size)
     square_shape.elasticity = 0.0
     square_shape.friction = 1.0
+
+    # square_shape.position = body_pos
+
     square_shape.color = [randrange(256) for i in range(4)]
     space.add(square_body, square_shape)
     return square_body, square_shape
@@ -25,12 +28,15 @@ def create_rigidbody(space, pos, size):
 
 def create_static_collider(space, pos, size):
     body_pos = pos[0] + size[0] / 2, pos[1] + size[1] / 2
-    static_body = space.static_body
+    static_body = pymunk.Body(body_type=pymunk.Body.STATIC)
     rect_shape = pymunk.Poly.create_box(static_body, size=size)
     rect_shape.body.position = body_pos
+
+    # rect_shape.position = body_pos
+
     # rect_shape.elasticity = 0.0
     rect_shape.friction = 0
-    space.add(rect_shape)
+    space.add(static_body, rect_shape)
     return static_body, rect_shape
 
 
@@ -54,8 +60,6 @@ class GameManager:
         self.input_keys = {}
         self.load_keys(keys_path)
 
-        self.space = pymunk.Space()
-        self.space.gravity = gravity
         surface = pygame.display.set_mode((1200, 680))
         self.draw_options = pymunk.pygame_util.DrawOptions(surface)
 
@@ -208,15 +212,16 @@ class GameGlobal:
 
     def load_room(self, path, **kwargs):
         if path in self.placed_rooms.keys() and self.placed_rooms[path][1] != self.last_room_x:
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position)
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
 
             delta_x = (self.last_room_x - self.placed_rooms[path][1] + self.placed_rooms[path][2]) * self.cell_size
             [obj.translate((1, 0), delta_x) for obj in self.placed_rooms[path][0]]
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position, delta_x, len(self.placed_rooms[path][0]))
 
             self.last_room_x += self.placed_rooms[path][2]
             self.placed_rooms[path][1] = self.last_room_x
             self.rooms_x += [self.last_room_x]
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position)
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
             return
 
         room_objects = []
@@ -307,12 +312,13 @@ class GameObject(pygame.sprite.Sprite):
 
         if 'has_collider' in self.tags and self.tags['has_collider']:
             self.add(game_global.collider_objects_group)
-            self.body, self.shape = create_static_collider(game_global.game_manager.space, self.pos, self.size)
-            print(self.body.position, self.shape.body.position)
+            self.body, self.shape = create_static_collider(space, self.pos, self.size)
+            if 'print_target' in self.tags:
+                print('SP', self.body.position, self.pos)
 
         if 'physical' in self.tags and self.tags['physical']:
             self.add(game_global.physical_objects_group)
-            self.body, self.shape = create_rigidbody(game_global.game_manager.space, self.pos, self.size)
+            self.body, self.shape = create_rigidbody(space, self.pos, self.size)
 
         self.renderLayer = 0
         if 'layer' in self.tags:
@@ -350,11 +356,8 @@ class GameObject(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = self.pos
         if 'physical' in self.tags and self.tags['physical']:
             self.body.angle = 0
-            # self.body.angular_velocity = 0
             self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
-            # self.body.position = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
             self.body.velocity *= 0.99
-            # self.body.
         if 'mult_sprites' in self.tags:
             if int(self.cur_image) < self.tags[f'anim_{self.cur_animation}_borders'][0]:
                 self.cur_image = self.tags[f'anim_{self.cur_animation}_borders'][1]
@@ -362,6 +365,9 @@ class GameObject(pygame.sprite.Sprite):
                 self.cur_image = self.tags[f'anim_{self.cur_animation}_borders'][0]
             self.image = images[self.mult_sprites[int(self.cur_image)]]
             self.cur_image += 1 * self.anim_speeds[self.cur_animation] / game_global.fps
+
+        if 'print_target' in self.tags:
+            print('X', self.body.position, self.pos[0])
 
 
     def on_collision(self, other):
@@ -377,15 +383,17 @@ class GameObject(pygame.sprite.Sprite):
         self.pos = (self.pos[0] + vector[0] * strength, self.pos[1] + vector[1] * strength)
         self.rect.x, self.rect.y = self.pos
         if 'has_collider' in self.tags:
-            self.shape.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
-            print(self.shape.body.position, self.pos[0], self.size[0] / 2, self.pos[1] + self.size[1] / 2)
+            self.body.position = (self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2)
+            if 'print_target' in self.tags:
+                print('TR', self.body.position, self.pos[0])
 
     def set_pos(self, vector):
         self.pos = vector
         self.rect.x, self.rect.y = self.pos
         if 'has_collider' in self.tags:
-            self.shape.body.position = self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2
-            print(self.shape.body.position, self.pos[0], self.size[0] / 2, self.pos[1] + self.size[1] / 2)
+            self.body.position = (self.pos[0] + self.size[0] / 2, self.pos[1] + self.size[1] / 2)
+            if 'print_target' in self.tags:
+                print(self.body.position, self.pos[0])
 
     def __str__(self):
         return f'GameObject {self.name} {self.get_transform()}'
@@ -441,6 +449,16 @@ class Interactable(GameObject):
             self.is_pressed = False
 
 
+class Movable(GameObject):
+    def update(self):
+        super().update()
+        # self.translate((1, 0), game_global.fps / 100)
+        # print(self.body.position, self.rect)
+        self.body.position += (game_global.fps / 100, 0)
+        self.rect.x, self.rect.y = self.body.position.x - self.rect[2] / 2, self.body.position.y - self.rect[3] / 2
+        self.pos = self.rect.x, self.rect.y
+
+
 def escape():
     game_global.program_running = False
 
@@ -452,6 +470,8 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
     window_size = pygame.display.get_surface().get_size()
+    space = pymunk.Space()
+    space.gravity = gravity=(0, 3200)
 
     images = {}
     game_global = GameGlobal(
@@ -460,7 +480,7 @@ if __name__ == '__main__':
                       ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
                       ('star0.png', 'star0', 5), ('button.png', 'button', 5), ('spring.png', 'spring', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
-        fps=60, gravity=(0, 3200),
+        fps=60,
         rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt', stars_path='data/scenes/star_map.txt')
@@ -470,7 +490,7 @@ if __name__ == '__main__':
         dt = clock.tick(game_global.fps) / 1000
         game_global.update(dt)
         game_global.render(screen)
-        game_global.game_manager.space.step(dt * 40 / 60)
-        # game_global.game_manager.space.debug_draw(game_global.game_manager.draw_options)
+        space.step(dt * 40 / 60)
+        space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
     pygame.quit()

@@ -1,2 +1,3 @@
 Player:(pos=(760, 200), prefab="player")
 GameObject:(pos=(700, 200), prefab="moon")
+Movable:(pos=(100, 500), im='player', has_collider=True)
