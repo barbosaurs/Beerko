@@ -40,6 +40,12 @@ def create_static_collider(space, pos, size):
     return static_body, rect_shape
 
 
+def play(val): #Play sound by name
+    if val in game_global.game_manager.sounds.keys():
+        sound = game_global.game_manager.sounds[val]
+        sound.play()
+
+
 class GameRenderer:
     def __init__(self, game_objects):
         self.game_objects = game_objects
@@ -52,7 +58,7 @@ class GameRenderer:
 
 
 class GameManager:
-    def __init__(self, keys_path, gravity):
+    def __init__(self, keys_path, audio_path, sounds):
         self.players = []
         self.buttons_pressed = set()
         self.move_input_axis = (0, 0)
@@ -69,6 +75,11 @@ class GameManager:
         self.game_started = False
         self.game_time_max = 200
         self.game_time_left = self.game_time_max
+
+        self.sounds = {}
+        for s in sounds:
+            self.sounds[s[1]] = pygame.mixer.Sound(audio_path + s[0])
+            self.sounds[s[1]].set_volume(s[2])
 
     def load_keys(self, keys_path):
         f = open(keys_path).readlines()
@@ -134,7 +145,7 @@ class GameManager:
 
 
 class GameGlobal:
-    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, gravity=(0, 0), rooms=()):
+    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, rooms=(), audio_path='', music='', sounds=()):
         self.program_running = True
         self.cam_pos = (0, 0)
         self.fps = fps
@@ -148,9 +159,13 @@ class GameGlobal:
         self.physical_objects_group = pygame.sprite.Group()
         self.collider_objects_group = pygame.sprite.Group()
 
+        pygame.mixer.init()
+        pygame.mixer.music.load(audio_path + music)
+        pygame.mixer.music.play(-1)
+
         self.game_objects = game_objects
         self.game_renderer = GameRenderer(self.game_objects)
-        self.game_manager = GameManager(keys_path, gravity)
+        self.game_manager = GameManager(keys_path, audio_path, sounds)
         [obj.start() for obj in self.game_objects]
         self.collisions = {}
 
@@ -181,7 +196,6 @@ class GameGlobal:
                     if 'tags' not in self.prefabs[prefab_name.strip()].keys():
                         self.prefabs[prefab_name.strip()]['tags'] = {}
                     self.prefabs[prefab_name.strip()]['tags'][k.strip().lstrip('*')] = v.strip()
-
 
     def scene_start(self):
         self.game_renderer.scene_start()
@@ -425,6 +439,7 @@ class Player(GameObject):
     def jump(self):
         if abs(self.body.velocity[1]) < 0.5:
             self.impulse((0, self.jump_strength))
+            play('jump')
 
     def impulse(self, vector, reset=True):
         if reset:
@@ -445,6 +460,8 @@ class Interactable(GameObject):
             if not self.is_pressed:
                 self.is_pressed = True
                 eval(self.func)
+                if 'sound' in self.tags:
+                    play(self.tags['sound'])
         else:
             self.is_pressed = False
 
@@ -476,12 +493,14 @@ if __name__ == '__main__':
     images = {}
     game_global = GameGlobal(
         init_path='data/images/',
-        sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5), ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5), ('player.png', 'player', 5),
+        sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5), ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5), ('rofler.png', 'test', 5),
                       ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
                       ('star0.png', 'star0', 5), ('button.png', 'button', 5), ('spring.png', 'spring', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60,
-        rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt')
+        rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt'),
+        audio_path='data/audio/', music='SpacyFood.mp3',
+        sounds=(('jump.wav', 'jump', 0.5), ('spring.wav', 'spring', 0.5), ('door_open.wav', 'door', 0.5), ('button_clicked.wav', 'button', 0.5))
     )
     game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt', stars_path='data/scenes/star_map.txt')
     # print(*[el for el in game_global.collider_objects_group])
@@ -491,6 +510,6 @@ if __name__ == '__main__':
         game_global.update(dt)
         game_global.render(screen)
         space.step(dt * 40 / 60)
-        space.debug_draw(game_global.game_manager.draw_options)
+        # space.debug_draw(game_global.game_manager.draw_options)
         pygame.display.flip()
     pygame.quit()
