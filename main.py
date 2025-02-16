@@ -499,9 +499,10 @@ class Button(Interactable):
 
         if self.door_to_open is None:
             if game_global.cur_room_path in game_global.placed_rooms.keys():
-                self.door_to_open = \
-                list(filter(lambda x: x.__class__ == Door, game_global.placed_rooms[self.cur_room][0]))[0]
-                print(self.door_to_open)
+                variants = list(filter(lambda x: x.__class__ == Door and not x.inverted and x.pos[0] > self.last_room_x, game_global.placed_rooms[self.cur_room][0]))
+                if len(variants) > 0:
+                    self.door_to_open = variants[0]
+                    print(self.door_to_open)
             else:
                 self.door_to_open = None
 
@@ -513,11 +514,15 @@ class Button(Interactable):
 
     def reset(self):
         self.cur_room = game_global.cur_room_path
+        self.last_room_x = game_global.last_room_x * game_global.cell_size
 
         if game_global.cur_room_path in game_global.placed_rooms.keys():
-            self.door_to_open = list(filter(lambda x: x.__class__ == Door, game_global.placed_rooms[self.cur_room][0]))[
-                0]
-            print(self.door_to_open)
+            variants = list(filter(lambda x: x.__class__ == Door and not x.inverted and x.pos[0] > self.last_room_x, game_global.placed_rooms[self.cur_room][0]))
+            if len(variants) > 0:
+                self.door_to_open = variants[0]
+                print(self.door_to_open)
+            else:
+                self.door_to_open = None
         else:
             self.door_to_open = None
 
@@ -526,6 +531,7 @@ class Door(GameObject):
     def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255),
                  **tags):
         self.start_pos = None
+        self.opened = False
         super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
 
     def update(self):
@@ -534,22 +540,29 @@ class Door(GameObject):
         if self.opened:
             if self.pos[1] > self.start_pos[1] - self.size[1] + 45:
                 self.translate((0, -1), 5)
+            self.cur_animation = 'opened'
+            self.renderLayer = -4
+        else:
+            if self.pos[1] < self.start_pos[1]:
+                self.translate((0, 1), 5)
+            self.cur_animation = 'closed' if not self.inverted else 'opened'
+            self.renderLayer = 1
+
+        if game_global.game_manager.players[0].pos[0] > self.pos[0] + self.rect[2] / 2:
+            self.opened = False
 
     def open(self):
         if not self.opened:
             self.opened = True
-            self.cur_animation = 'opened'
-            self.renderLayer = -4
 
     def reset(self):
+        self.inverted = ('inverted' in self.tags.keys() and self.tags['inverted'])
+        self.opened = self.inverted
         if self.start_pos is not None:
-            self.pos = self.start_pos
-
-        self.opened = False
-        self.cur_animation = 'closed'
-        self.renderLayer = 1
-
+            self.pos = self.start_pos if not self.inverted else (self.start_pos[0] - self.size[1] + 45, self.start_pos[1])
         self.start_pos = self.pos
+
+        print(self, self.inverted, self.opened)
 
 
 def escape():
