@@ -28,19 +28,20 @@ def create_rigidbody(space, pos, size):
 
 def create_static_collider(space, pos, size):
     body_pos = pos[0] + size[0] / 2, pos[1] + size[1] / 2
-    static_body = pymunk.Body(body_type=pymunk.Body.STATIC)
+
+    static_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
+    static_body.position = body_pos
+
     rect_shape = pymunk.Poly.create_box(static_body, size=size)
-    rect_shape.body.position = body_pos
+    rect_shape.friction = 0  # Устанавливаем трение
 
-    # rect_shape.position = body_pos
-
-    # rect_shape.elasticity = 0.0
-    rect_shape.friction = 0
+    # Добавляем тело и форму в пространство
     space.add(static_body, rect_shape)
+
     return static_body, rect_shape
 
 
-def play(val): #Play sound by name
+def play(val):  # Play sound by name
     if val in game_global.game_manager.sounds.keys():
         sound = game_global.game_manager.sounds[val]
         sound.play()
@@ -51,7 +52,9 @@ class GameRenderer:
         self.game_objects = game_objects
 
     def render(self, group, screen):
-        [screen.blit(obj.image, (obj.pos[0] - game_global.cam_pos[0] * obj.parallax_x, obj.pos[1] - game_global.cam_pos[1] * obj.parallax_y)) for obj in sorted(group, key=lambda x: x.renderLayer)]
+        [screen.blit(obj.image, (
+        obj.pos[0] - game_global.cam_pos[0] * obj.parallax_x, obj.pos[1] - game_global.cam_pos[1] * obj.parallax_y)) for
+         obj in sorted(group, key=lambda x: x.renderLayer)]
 
     def scene_start(self):
         pass
@@ -109,7 +112,7 @@ class GameManager:
                         if v[1] == '1':
                             # print(k)
                             eval(v[0])
-                #print(event.key)
+                # print(event.key)
         keys = pygame.key.get_pressed()
         for k, v in self.input_keys.items():
             if keys[k]:
@@ -123,15 +126,17 @@ class GameManager:
         if self.players[0].pos[0] > game_global.rooms_x[-1] * game_global.cell_size:
             game_global.load_rnd_room()
         if game_global.cam_pos[0] < game_global.rooms_x[self.cur_room] * game_global.cell_size:
-            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size * dt, game_global.cam_pos[1])
-        game_global.cam_pos = (min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
+            game_global.cam_pos = (
+            game_global.cam_pos[0] + self.cam_speed * game_global.cell_size * dt, game_global.cam_pos[1])
+        game_global.cam_pos = (
+        min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
 
         if self.players[0].pos[0] > game_global.rooms_x[1] * game_global.cell_size and not self.game_started:
             self.game_started = True
             self.game_time_left = self.game_time_max
         if self.game_started:
             if self.game_time_left > 0:
-                self.game_time_left -= 1/game_global.fps
+                self.game_time_left -= 1 / game_global.fps
                 self.game_time_left -= dt
                 # print(self.game_time_left)
             else:
@@ -145,7 +150,8 @@ class GameManager:
 
 
 class GameGlobal:
-    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, rooms=(), audio_path='', music='', sounds=()):
+    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, rooms=(),
+                 audio_path='', music='', sounds=()):
         self.program_running = True
         self.cam_pos = (0, 0)
         self.fps = fps
@@ -171,7 +177,7 @@ class GameGlobal:
 
         for path in sprites_path:
             image = pygame.image.load(init_path + path[0])
-            image = pygame.transform.scale(image, (image.get_width()*path[2], image.get_height()*path[2]))
+            image = pygame.transform.scale(image, (image.get_width() * path[2], image.get_height() * path[2]))
             images[path[1]] = image
 
         self.prefabs = {}
@@ -222,20 +228,27 @@ class GameGlobal:
         return path
 
     def load_rnd_room(self):
-        game_global.load_room(game_global.rooms[random.randrange(0, len(game_global.rooms))], cell_size=40, path_symbols='data/prefabs_symbols.txt')
+        game_global.load_room(game_global.rooms[random.randrange(0, len(game_global.rooms))], cell_size=40,
+                              path_symbols='data/prefabs_symbols.txt')
 
     def load_room(self, path, **kwargs):
+        self.cur_room_path = path
+
         if path in self.placed_rooms.keys() and self.placed_rooms[path][1] != self.last_room_x:
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
+                  self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
 
             delta_x = (self.last_room_x - self.placed_rooms[path][1] + self.placed_rooms[path][2]) * self.cell_size
             [obj.translate((1, 0), delta_x) for obj in self.placed_rooms[path][0]]
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position, delta_x, len(self.placed_rooms[path][0]))
+            [obj.reset() for obj in self.placed_rooms[path][0]]
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
+                  self.placed_rooms[path][0][0].body.position, delta_x, len(self.placed_rooms[path][0]))
 
             self.last_room_x += self.placed_rooms[path][2]
             self.placed_rooms[path][1] = self.last_room_x
             self.rooms_x += [self.last_room_x]
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect, self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
+            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
+                  self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
             return
 
         room_objects = []
@@ -289,7 +302,8 @@ class GameGlobal:
 
 
 class GameObject(pygame.sprite.Sprite):
-    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), **tags):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='',
+                 color=(255, 255, 255), **tags):
         super().__init__(game_global.all_objects_group)
 
         self.pos, self.size, self.scale, self.name, self.im, self.color = [None] * 6
@@ -342,7 +356,9 @@ class GameObject(pygame.sprite.Sprite):
             self.anim_speeds = {}
             for i in self.tags['animations'].split():
                 if f'anim_{i}_speed' in self.tags:
-                    self.anim_speeds[i] = self.tags[f'anim_{i}_speed'] if type(self.tags[f'anim_{i}_speed']) != tuple else random.randrange(self.tags[f'anim_{i}_speed'][0], self.tags[f'anim_{i}_speed'][1])
+                    self.anim_speeds[i] = self.tags[f'anim_{i}_speed'] if type(
+                        self.tags[f'anim_{i}_speed']) != tuple else random.randrange(self.tags[f'anim_{i}_speed'][0],
+                                                                                     self.tags[f'anim_{i}_speed'][1])
                 else:
                     self.anim_speeds[i] = 1
             self.cur_image = 0
@@ -362,6 +378,7 @@ class GameObject(pygame.sprite.Sprite):
             self.pos = (self.pos[0] + val, self.pos[1] + val)
             self.rect.x, self.rect.y = pos
 
+        self.reset()
 
     def start(self):
         pass
@@ -372,6 +389,8 @@ class GameObject(pygame.sprite.Sprite):
             self.body.angle = 0
             self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
             self.body.velocity *= 0.99
+        if 'has_collider' in self.tags and self.tags['has_collider']:
+            self.pos = self.body.position[0] - self.size[0] / 2, self.body.position[1] - self.size[1] / 2
         if 'mult_sprites' in self.tags:
             if int(self.cur_image) < self.tags[f'anim_{self.cur_animation}_borders'][0]:
                 self.cur_image = self.tags[f'anim_{self.cur_animation}_borders'][1]
@@ -382,7 +401,6 @@ class GameObject(pygame.sprite.Sprite):
 
         if 'print_target' in self.tags:
             print('X', self.body.position, self.pos[0])
-
 
     def on_collision(self, other):
         pass
@@ -412,9 +430,13 @@ class GameObject(pygame.sprite.Sprite):
     def __str__(self):
         return f'GameObject {self.name} {self.get_transform()}'
 
+    def reset(self):
+        pass
+
 
 class Player(GameObject):
-    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), move_speed=1, jump_strength=1, **tags):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='',
+                 color=(255, 255, 255), move_speed=1, jump_strength=1, **tags):
         super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
         self.move_input_axis = (0, 0)
         if self.move_speed is None:
@@ -423,7 +445,8 @@ class Player(GameObject):
             self.jump_strength = jump_strength
 
     def set_move_input_axis(self, vector=(0, 0)):
-        self.scale = (self.scale[0], self.scale[1]) if vector[0] == self.move_input_axis[0] else (-self.scale[0], self.scale[1])
+        self.scale = (self.scale[0], self.scale[1]) if vector[0] == self.move_input_axis[0] else (
+        -self.scale[0], self.scale[1])
         self.move_input_axis = vector
 
     def update(self):
@@ -448,7 +471,8 @@ class Player(GameObject):
 
 
 class Interactable(GameObject):
-    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255), **tags):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255),
+                 **tags):
         super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
         self.is_pressed = False
         if "func" in self.tags:
@@ -465,15 +489,67 @@ class Interactable(GameObject):
         else:
             self.is_pressed = False
 
+    def reset(self):
+        pass
 
-class Movable(GameObject):
+
+class Button(Interactable):
     def update(self):
         super().update()
-        # self.translate((1, 0), game_global.fps / 100)
-        # print(self.body.position, self.rect)
-        self.body.position += (game_global.fps / 100, 0)
-        self.rect.x, self.rect.y = self.body.position.x - self.rect[2] / 2, self.body.position.y - self.rect[3] / 2
-        self.pos = self.rect.x, self.rect.y
+
+        if self.door_to_open is None:
+            if game_global.cur_room_path in game_global.placed_rooms.keys():
+                self.door_to_open = \
+                list(filter(lambda x: x.__class__ == Door, game_global.placed_rooms[self.cur_room][0]))[0]
+                print(self.door_to_open)
+            else:
+                self.door_to_open = None
+
+        if self.is_pressed:
+            self.cur_animation = 'clicked'
+            self.door_to_open.open()
+        else:
+            self.cur_animation = 'default'
+
+    def reset(self):
+        self.cur_room = game_global.cur_room_path
+
+        if game_global.cur_room_path in game_global.placed_rooms.keys():
+            self.door_to_open = list(filter(lambda x: x.__class__ == Door, game_global.placed_rooms[self.cur_room][0]))[
+                0]
+            print(self.door_to_open)
+        else:
+            self.door_to_open = None
+
+
+class Door(GameObject):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='button', im='', color=(255, 255, 255),
+                 **tags):
+        self.start_pos = None
+        super().__init__(prefab=prefab, pos=pos, scale=scale, size=size, name=name, im=im, color=color, **tags)
+
+    def update(self):
+        super().update()
+
+        if self.opened:
+            if self.pos[1] > self.start_pos[1] - self.size[1] + 45:
+                self.translate((0, -1), 5)
+
+    def open(self):
+        if not self.opened:
+            self.opened = True
+            self.cur_animation = 'opened'
+            self.renderLayer = -4
+
+    def reset(self):
+        if self.start_pos is not None:
+            self.pos = self.start_pos
+
+        self.opened = False
+        self.cur_animation = 'closed'
+        self.renderLayer = 1
+
+        self.start_pos = self.pos
 
 
 def escape():
@@ -488,22 +564,32 @@ if __name__ == '__main__':
     clock = pygame.time.Clock()
     window_size = pygame.display.get_surface().get_size()
     space = pymunk.Space()
-    space.gravity = gravity=(0, 3200)
+    space.gravity = gravity = (0, 3200)
 
     images = {}
     game_global = GameGlobal(
         init_path='data/images/',
-        sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5), ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5), ('rofler.png', 'test', 5),
-                      ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5), ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5), ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5), ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
-                      ('star0.png', 'star0', 5), ('button.png', 'button', 5), ('spring.png', 'spring', 5)),
+        sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5),
+                      ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5),
+                      ('rofler.png', 'test', 5),
+                      ('player/player_stay1.png', 'player_stay1', 5), ('player/player_stay2.png', 'player_stay2', 5),
+                      ('player/player_stay3.png', 'player_stay3', 5), ('player/player_stay4.png', 'player_stay4', 5),
+                      ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5),
+                      ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
+                      ('star0.png', 'star0', 5), ('button.png', 'button', 5),
+                      ('button_clicked.png', 'button_clicked', 5), ('spring.png', 'spring', 5),
+                      ('door_closed.png', 'door_closed', 5), ('door_opened.png', 'door_opened', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60,
         rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt'),
         audio_path='data/audio/', music='SpacyFood.mp3',
-        sounds=(('jump.wav', 'jump', 0.5), ('spring.wav', 'spring', 0.5), ('door_open.wav', 'door', 0.5), ('button_clicked.wav', 'button', 0.5))
+        sounds=(('jump.wav', 'jump', 0.5), ('spring.wav', 'spring', 0.5), ('door_open.wav', 'door', 0.5),
+                ('button_clicked.wav', 'button', 0.5))
     )
-    game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40, path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt', stars_path='data/scenes/star_map.txt')
-    # print(*[el for el in game_global.collider_objects_group])
+    game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40,
+                           path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt',
+                           stars_path='data/scenes/star_map.txt')
+
     while game_global.program_running:
         screen.fill((0, 10, 10))
         dt = clock.tick(game_global.fps) / 1000
