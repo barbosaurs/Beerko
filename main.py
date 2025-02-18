@@ -51,20 +51,31 @@ class GameRenderer:
     def __init__(self, game_objects):
         self.game_objects = game_objects
 
+    def restart(self):
+        self.game_objects = []
+
     def render(self, group, screen):
         [screen.blit(obj.image, (
         obj.pos[0] - game_global.cam_pos[0] * obj.parallax_x, obj.pos[1] - game_global.cam_pos[1] * obj.parallax_y)) for
-         obj in sorted(group, key=lambda x: x.renderLayer)]
+        obj in sorted(group, key=lambda x: x.renderLayer)]
+
+    def render_objects(self, objects):
+        [screen.blit(obj[0],(obj[1][0] - game_global.cam_pos[0] * obj[2], obj[1][1] - game_global.cam_pos[1] * obj[2])) for obj in objects]
+
 
     def scene_start(self):
         pass
 
 
 class GameManager:
-    def __init__(self, keys_path, audio_path, sounds):
+    def __init__(self, keys_path, audio_path, sounds, player_data_path):
         self.players = []
         self.buttons_pressed = set()
         self.move_input_axis = (0, 0)
+
+        self.player_data = {}
+        self.player_data_path = player_data_path
+        self.load_player_data()
 
         self.input_keys = {}
         self.load_keys(keys_path)
@@ -73,16 +84,38 @@ class GameManager:
         self.draw_options = pymunk.pygame_util.DrawOptions(surface)
 
         self.cur_room = 0
+        self.rooms_count_max = 15 + 3
+        self.rooms_count = 0
         self.cam_speed = 50
 
         self.game_started = False
-        self.game_time_max = 200
+        self.game_time_max = int(self.player_data['upgrade_level']) * 20
         self.game_time_left = self.game_time_max
+        self.view_end_screen = False
+        self.time_before_view_end_screen = -1
+
+        self.exp_all = int(self.player_data['exp'])
+        self.exp_got = -3
 
         self.sounds = {}
         for s in sounds:
             self.sounds[s[1]] = pygame.mixer.Sound(audio_path + s[0])
             self.sounds[s[1]].set_volume(s[2])
+
+        self.texts_info = {}
+        self.view_end_screen_objects = {}
+
+    def load_player_data(self):
+        f = open(self.player_data_path).readlines()
+        self.player_data = {}
+        for i in f:
+            k, v = i.split('=')
+            self.player_data[k.strip()] = v.strip()
+
+    def save_player_data(self):
+        f = open(self.player_data_path, mode='w')
+        for k, v in self.player_data.items():
+            print(f'{k}={v}', file=f)
 
     def load_keys(self, keys_path):
         f = open(keys_path).readlines()
@@ -92,6 +125,10 @@ class GameManager:
 
     def add_players(self, players):
         self.players += players
+
+        if 'player' not in self.texts_info.keys():
+            self.texts_info['player'] = [font.render('', True, (40, 40, 40)), (10, 50), 0]
+            self.texts_info['exp'] = [font.render('', True, (40, 40, 40)), (10, 10), 0]
 
     def add_move_input_axis(self, vector=(0, 0)):
         if self.game_time_left > 0:
@@ -124,55 +161,129 @@ class GameManager:
             if self.players[0].pos[0] > game_global.rooms_x[i] * game_global.cell_size:
                 self.cur_room = i
         if self.players[0].pos[0] > game_global.rooms_x[-1] * game_global.cell_size:
-            game_global.load_rnd_room()
+            if self.rooms_count < self.rooms_count_max:
+                game_global.load_rnd_room()
+            elif not self.view_end_screen and self.time_before_view_end_screen == -1:
+                # self.view_end_screen = True
+                # self.open_end_screen()
+                space.gravity = (200, -50)
+                self.players[0].set_move_input_axis((0, 0))
+                self.players[0].controlling = False
+                self.time_before_view_end_screen = 5
+
+        if self.view_end_screen:
+            if self.time_before_restart >= 0:
+                self.view_end_screen_objects['restart_at'][0] = font.render('Restart in: ' + str((self.time_before_restart * 10) // 1 / 10), True, (240, 240, 240))
+                self.time_before_restart -= dt
+            else:
+                # print('RESTART>>>>>')
+                game_global.restart()
+                return
+
+            if self.anim_time >= 0:
+                self.view_end_screen_objects['bg'][0].fill((self.anim_time / self.anim_delta * 100, self.anim_time / self.anim_delta * 100, self.anim_time / self.anim_delta * 100))
+                self.view_end_screen_objects['time'][1] = ((1 - self.anim_time / self.anim_delta) * 150, self.view_end_screen_objects['time'][1][1])
+                self.view_end_screen_objects['rooms_completed'][1] = ((1 - max(self.anim_time - 0.2, 0) / self.anim_delta) * 150, self.view_end_screen_objects['rooms_completed'][1][1])
+                self.view_end_screen_objects['exp'][1] = ((1 - max(self.anim_time - 0.4, 0) / self.anim_delta) * 150, self.view_end_screen_objects['exp'][1][1])
+                self.view_end_screen_objects['exp_now'][1] = ((1 - max(self.anim_time - 0.6, 0) / self.anim_delta) * 150, self.view_end_screen_objects['exp_now'][1][1])
+                self.view_end_screen_objects['restart_at'][1] = ((1 - max(self.anim_time - 1, 0) / self.anim_delta) * 150, self.view_end_screen_objects['restart_at'][1][1])
+
+                self.anim_time -= dt
+
         if game_global.cam_pos[0] < game_global.rooms_x[self.cur_room] * game_global.cell_size:
-            game_global.cam_pos = (
-            game_global.cam_pos[0] + self.cam_speed * game_global.cell_size * dt, game_global.cam_pos[1])
-        game_global.cam_pos = (
-        min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
+            game_global.cam_pos = (game_global.cam_pos[0] + self.cam_speed * game_global.cell_size * dt, game_global.cam_pos[1])
+        game_global.cam_pos = (min(game_global.cam_pos[0], game_global.rooms_x[self.cur_room] * game_global.cell_size), game_global.cam_pos[1])
 
         if self.players[0].pos[0] > game_global.rooms_x[1] * game_global.cell_size and not self.game_started:
             self.game_started = True
             self.game_time_left = self.game_time_max
-        if self.game_started:
-            if self.game_time_left > 0:
-                self.game_time_left -= 1 / game_global.fps
-                self.game_time_left -= dt
-                # print(self.game_time_left)
+        if self.game_started and not self.view_end_screen:
+            if self.time_before_view_end_screen == -1:
+                if self.game_time_left > 0:
+                    self.game_time_left -= dt
+                    # print(self.game_time_left)
+                else:
+                    self.view_end_screen = True
+                    self.open_end_screen()
             else:
-                print('Game ended.')
+                if self.time_before_view_end_screen > 0:
+                    self.time_before_view_end_screen -= dt
+                else:
+                    self.time_before_view_end_screen = -1
+                    self.view_end_screen = True
+                    self.open_end_screen()
+
 
         if self.players[0].pos[0] == min(self.players[0].pos[0], game_global.cam_pos[0] + 20):
             self.players[0].set_pos((game_global.cam_pos[0] + 21, self.players[0].pos[1]))
+
+        if self.game_started:
+            if self.game_time_left >= 0:
+                self.texts_info['player'][0] = font.render('Time left: ' + str(int(self.game_time_left)), True, (40, 40, 40))
+                self.texts_info['exp'][0] = font.render('Exp got: ' + str(int(self.exp_got)), True, (40, 40, 40))
+        else:
+            self.texts_info['player'][0] = font.render('', True, (40, 40, 40))
+            self.texts_info['exp'][0] = font.render('Exp now: ' + str(self.exp_all), True, (40, 40, 40))
+
+    def open_end_screen(self):
+        self.anim_time = 2
+        self.anim_delta = self.anim_time
+        self.time_before_restart = 10
+
+        self.exp_all += self.exp_got
+        self.player_data['exp'] = str(self.exp_all)
+
+        new_record = False
+        if self.game_time_left > int(self.player_data['best_time']):
+            self.player_data['best_time'] = str(int(self.game_time_max - self.game_time_left))
+            new_record = True
+
+        self.view_end_screen_objects['bg'] = [pygame.Surface((width, height)), (0, 0), 0]
+        self.view_end_screen_objects['bg'][0].fill((100, 100, 100))
+        self.view_end_screen_objects['time'] =[font.render(f'Time: {self.game_time_max - max((int(self.game_time_left), 0))} {"(New record)" if new_record else ""}', True, (240, 240, 240) if not new_record else (240, 240, 0)), (150, 50), 0]
+        self.view_end_screen_objects['rooms_completed'] = [font.render('Rooms completed: ' + str(self.rooms_count - 3), True, (240, 240, 240)), (150, 100), 0]
+        self.view_end_screen_objects['exp'] = [font.render('Exp got: ' + str(self.exp_got), True, (240, 240, 240)), (150, 150), 0]
+        self.view_end_screen_objects['exp_now'] = [font.render('Exp now: ' + str(self.exp_all), True, (240, 240, 240)), (150, 200), 0]
+        self.view_end_screen_objects['restart_at'] = [font.render('Restart in: ' + str(self.time_before_restart), True, (240, 240, 240)), (150, height - 50), 0]
+
+        if self.exp_all > 8 * int(self.player_data['upgrade_level']):
+            self.player_data['upgrade_level'] = str(int(self.player_data['upgrade_level']) + 1)
+            if int(self.player_data['upgrade_level']) >= 5:
+                self.player_data['upgrade_level'] = str(5)
+                self.view_end_screen_objects['upgrade_level'] = [font.render('Level 5 (MAX)', True, (0, 240, 0)), (150, height - 100), 0]
+            else:
+                self.view_end_screen_objects['upgrade_level'] = [font.render('Level upgraded to ' + self.player_data['upgrade_level'], True, (240, 240, 0)), (150, height - 100), 0]
+
+        self.save_player_data()
 
     def scene_start(self):
         pass
 
 
 class GameGlobal:
-    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, rooms=(),
-                 audio_path='', music='', sounds=()):
-        self.program_running = True
-        self.cam_pos = (0, 0)
-        self.fps = fps
-        self.rooms = rooms
-        self.rooms_x = [0]
-        self.last_room_x = 0
-        self.cell_size = 40
-        self.placed_rooms = {}
+    def __init__(self, game_objects=(), init_path='', sprites_path=(), prefabs_path='', keys_path='', fps=60, rooms=(), audio_path='', music='', sounds=(), player_data_path=''):
+        global game_global
+        game_global = self
 
-        self.all_objects_group = pygame.sprite.Group()
-        self.physical_objects_group = pygame.sprite.Group()
-        self.collider_objects_group = pygame.sprite.Group()
+        self.program_running = None
+        self.cam_pos = None
+        self.last_room_x = None
+        self.rooms_x = None
+        self.cell_size = None
+        self.placed_rooms = None
+
+        self.all_objects_group = None
+        self.physical_objects_group = None
+        self.collider_objects_group = None
 
         pygame.mixer.init()
         pygame.mixer.music.load(audio_path + music)
         pygame.mixer.music.play(-1)
 
-        self.game_objects = game_objects
+        self.game_objects = None
         self.game_renderer = GameRenderer(self.game_objects)
-        self.game_manager = GameManager(keys_path, audio_path, sounds)
-        [obj.start() for obj in self.game_objects]
+        self.game_manager_init_data = (keys_path, audio_path, sounds, player_data_path)
+        self.game_manager = None
         self.collisions = {}
 
         for path in sprites_path:
@@ -203,6 +314,41 @@ class GameGlobal:
                         self.prefabs[prefab_name.strip()]['tags'] = {}
                     self.prefabs[prefab_name.strip()]['tags'][k.strip().lstrip('*')] = v.strip()
 
+        self.restart_data = (fps, rooms, game_objects)
+        self.restart()
+
+    def restart(self):
+        global space
+        fps, rooms, game_objects = self.restart_data
+
+        space = pymunk.Space()
+        space.gravity = (0, 3200)
+
+        self.program_running = True
+        self.cam_pos = (0, 0)
+        self.last_room_x = 0
+        self.rooms_x = [0]
+        self.cell_size = 40
+        self.placed_rooms = {}
+
+        self.fps = fps
+        self.rooms = rooms
+
+        self.all_objects_group = pygame.sprite.Group()
+        self.physical_objects_group = pygame.sprite.Group()
+        self.collider_objects_group = pygame.sprite.Group()
+        if self.game_manager is not None:
+            self.game_manager.active = False
+            del self.game_manager
+        self.game_manager = GameManager(*self.game_manager_init_data)
+        if self.game_objects is not None:
+            del self.game_objects
+        self.game_objects = game_objects
+        self.game_renderer.restart()
+        [obj.start() for obj in self.game_objects]
+
+        load_scene()
+
     def scene_start(self):
         self.game_renderer.scene_start()
         self.game_manager.scene_start()
@@ -228,27 +374,30 @@ class GameGlobal:
         return path
 
     def load_rnd_room(self):
-        game_global.load_room(game_global.rooms[random.randrange(0, len(game_global.rooms))], cell_size=40,
-                              path_symbols='data/prefabs_symbols.txt')
+        self.load_room(
+            self.rooms[random.randrange(0, len(self.rooms))], cell_size=40, path_symbols='data/prefabs_symbols.txt'
+        )
 
     def load_room(self, path, **kwargs):
         self.cur_room_path = path
+        self.game_manager.rooms_count += 1
+        self.game_manager.exp_got += 1
 
         if path in self.placed_rooms.keys() and self.placed_rooms[path][1] != self.last_room_x:
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
-                  self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
+            # print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
+            #       self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
 
             delta_x = (self.last_room_x - self.placed_rooms[path][1] + self.placed_rooms[path][2]) * self.cell_size
             [obj.translate((1, 0), delta_x) for obj in self.placed_rooms[path][0]]
             [obj.reset() for obj in self.placed_rooms[path][0]]
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
-                  self.placed_rooms[path][0][0].body.position, delta_x, len(self.placed_rooms[path][0]))
+            # print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
+            #       self.placed_rooms[path][0][0].body.position, delta_x, len(self.placed_rooms[path][0]))
 
             self.last_room_x += self.placed_rooms[path][2]
             self.placed_rooms[path][1] = self.last_room_x
             self.rooms_x += [self.last_room_x]
-            print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
-                  self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
+            # print(self.placed_rooms[path][0][0].pos, self.placed_rooms[path][0][0].rect,
+            #       self.placed_rooms[path][0][0].body.position, self.placed_rooms[path][0][0].body.mass)
             return
 
         room_objects = []
@@ -299,11 +448,13 @@ class GameGlobal:
 
     def render(self, screen):
         self.game_renderer.render(self.all_objects_group, screen)
+        self.game_renderer.render_objects(self.game_manager.texts_info.values())
+        if self.game_manager.view_end_screen and len(self.game_manager.view_end_screen_objects) > 0:
+            self.game_renderer.render_objects(self.game_manager.view_end_screen_objects.values())
 
 
 class GameObject(pygame.sprite.Sprite):
-    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='',
-                 color=(255, 255, 255), **tags):
+    def __init__(self, prefab='', pos=(0, 0), scale=(1, 1), size=(40, 40), name='new_game_object', im='', color=(255, 255, 255), **tags):
         super().__init__(game_global.all_objects_group)
 
         self.pos, self.size, self.scale, self.name, self.im, self.color = [None] * 6
@@ -443,24 +594,24 @@ class Player(GameObject):
             self.move_speed = move_speed
         if self.jump_strength is None:
             self.jump_strength = jump_strength
+        self.controlling = True
 
     def set_move_input_axis(self, vector=(0, 0)):
-        self.scale = (self.scale[0], self.scale[1]) if vector[0] == self.move_input_axis[0] else (
-        -self.scale[0], self.scale[1])
-        self.move_input_axis = vector
+        if self.controlling:
+            self.move_input_axis = vector
 
     def update(self):
         super().update()
         self.body.velocity += (self.move_input_axis[0] * self.move_speed, 0)
         if abs(self.move_input_axis[0]) <= 0:
             self.cur_animation = 'stay'
-            self.body.velocity = (self.body.velocity[0] * 0.8, self.body.velocity[1])
+            self.body.velocity = (self.body.velocity[0] * 0.8 if self.controlling else self.body.velocity[0] * 0.95, self.body.velocity[1])
         else:
             self.cur_animation = 'move'
             self.body.velocity = (min(700, max(-700, self.body.velocity[0])), self.body.velocity[1])
 
     def jump(self):
-        if abs(self.body.velocity[1]) < 0.5:
+        if abs(self.body.velocity[1]) < 1:
             self.impulse((0, self.jump_strength))
             play('jump')
 
@@ -489,6 +640,11 @@ class Interactable(GameObject):
         else:
             self.is_pressed = False
 
+        if self.is_pressed:
+            self.cur_animation = 'used'
+        else:
+            self.cur_animation = 'default'
+
     def reset(self):
         pass
 
@@ -502,15 +658,8 @@ class Button(Interactable):
                 variants = list(filter(lambda x: x.__class__ == Door and not x.inverted and x.pos[0] > self.last_room_x, game_global.placed_rooms[self.cur_room][0]))
                 if len(variants) > 0:
                     self.door_to_open = variants[0]
-                    print(self.door_to_open)
             else:
                 self.door_to_open = None
-
-        if self.is_pressed:
-            self.cur_animation = 'clicked'
-            self.door_to_open.open()
-        else:
-            self.cur_animation = 'default'
 
     def reset(self):
         self.cur_room = game_global.cur_room_path
@@ -520,7 +669,6 @@ class Button(Interactable):
             variants = list(filter(lambda x: x.__class__ == Door and not x.inverted and x.pos[0] > self.last_room_x, game_global.placed_rooms[self.cur_room][0]))
             if len(variants) > 0:
                 self.door_to_open = variants[0]
-                print(self.door_to_open)
             else:
                 self.door_to_open = None
         else:
@@ -554,6 +702,7 @@ class Door(GameObject):
     def open(self):
         if not self.opened:
             self.opened = True
+            play('door')
 
     def reset(self):
         self.inverted = ('inverted' in self.tags.keys() and self.tags['inverted'])
@@ -562,11 +711,15 @@ class Door(GameObject):
             self.pos = self.start_pos if not self.inverted else (self.start_pos[0] - self.size[1] + 45, self.start_pos[1])
         self.start_pos = self.pos
 
-        print(self, self.inverted, self.opened)
-
 
 def escape():
     game_global.program_running = False
+
+
+def load_scene():
+    game_global.load_scene('data/scenes/main_room.txt', load_type='new', cell_size=40,
+                    path_symbols='data/prefabs_symbols.txt', path2='data/scenes/main_room_.txt',
+                    stars_path='data/scenes/star_map.txt')
 
 
 if __name__ == '__main__':
@@ -576,11 +729,13 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
     window_size = pygame.display.get_surface().get_size()
-    space = pymunk.Space()
-    space.gravity = gravity = (0, 3200)
+    space = None
+
+    font = pygame.font.Font('data/retro_computer_personal_use.ttf', 20)
 
     images = {}
-    game_global = GameGlobal(
+    game_global = None
+    GameGlobal(
         init_path='data/images/',
         sprites_path=(('bricks.png', 'bricks', 5), ('bricks1.png', 'bricks1', 5), ('bricks_bg.png', 'bricks_bg', 5),
                       ('glass.png', 'glass', 5), ('sign.png', 'sign', 5), ('moon.png', 'moon', 5),
@@ -590,18 +745,17 @@ if __name__ == '__main__':
                       ('player/player_move1.png', 'player_move1', 5), ('player/player_move2.png', 'player_move2', 5),
                       ('player/player_move3.png', 'player_move3', 5), ('player/player_move4.png', 'player_move4', 5),
                       ('star0.png', 'star0', 5), ('button.png', 'button', 5),
-                      ('button_clicked.png', 'button_clicked', 5), ('spring.png', 'spring', 5),
+                      ('button_clicked.png', 'button_clicked', 5), ('spring.png', 'spring', 5), ('spring_used.png', 'spring1', 5),
                       ('door_closed.png', 'door_closed', 5), ('door_opened.png', 'door_opened', 5)),
         prefabs_path='data/prefabs.txt', keys_path='data/input_keys.txt',
         fps=60,
-        rooms=('data/scenes/testroom.txt', 'data/scenes/testroom1.txt'),
+        rooms=('data/scenes/room.txt', 'data/scenes/room1.txt', 'data/scenes/room2.txt', 'data/scenes/room3.txt',
+               'data/scenes/room4.txt', 'data/scenes/room5.txt'),
         audio_path='data/audio/', music='SpacyFood.mp3',
         sounds=(('jump.wav', 'jump', 0.5), ('spring.wav', 'spring', 0.5), ('door_open.wav', 'door', 0.5),
-                ('button_clicked.wav', 'button', 0.5))
+                ('button_clicked.wav', 'button', 0.5)),
+        player_data_path='data/player_data.txt'
     )
-    game_global.load_scene('data/scenes/test.txt', load_type='new', cell_size=40,
-                           path_symbols='data/prefabs_symbols.txt', path2='data/scenes/test_.txt',
-                           stars_path='data/scenes/star_map.txt')
 
     while game_global.program_running:
         screen.fill((0, 10, 10))
