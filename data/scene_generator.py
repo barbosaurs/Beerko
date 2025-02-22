@@ -1,4 +1,4 @@
-# import sys
+ # import sys
 
 # scene_path = 'scenes/test.txt'
 # f = open(scene_path, encoding='utf-8').read()

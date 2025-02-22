@@ -724,7 +724,7 @@ def load_scene():
 
 if __name__ == '__main__':
     pygame.init()
-    pygame.display.set_caption('Platformer alpha')
+    pygame.display.set_caption('BEERKO')
     size = width, height = 1200, 680  # 30x17 cells
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
